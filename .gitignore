@@ -1,0 +1,13 @@
+# API keys - DO NOT COMMIT
+build_pack.py
+
+# Generated data (pack.json needed by skill)
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# IDE
+.vscode/
+.idea/
