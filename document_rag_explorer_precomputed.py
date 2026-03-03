@@ -428,6 +428,7 @@ def load_document_sources():
                         file_name = processed_file.get("File", "unknown_file")
                         document_id = processed_file.get("DocumentId", "")
                         doc_company = processed_file.get("Company", "")
+                        doc_url = processed_file.get("Url", "")
                         chunks = processed_file.get("Chunks", [])
                         logger.info(f"DEBUG: Processing file '{file_name}' (Company: {doc_company}) with {len(chunks)} chunks")
                         for chunk in chunks:
@@ -437,6 +438,7 @@ def load_document_sources():
                                 "file_name": file_name,
                                 "document_id": document_id,
                                 "company": chunk_company,
+                                "url": doc_url,
                                 "text": chunk.get("Text", ""),
                                 "description": str(chunk.get("Text", ""))[:200] + "..." if len(str(chunk.get("Text", ""))) > 200 else str(chunk.get("Text", "")),
                                 "chunk_index": chunk.get("Page", 1),
@@ -559,7 +561,6 @@ def find_matching_documents(user_question, topics, loaded_sources, base_url, max
             if similarity >= float(match_threshold):
                 source_copy = source.copy()
                 source_copy['match_score'] = similarity
-                source_copy['url'] = f"{base_url.rstrip('/')}/{source_copy['document_id']}#page={source_copy['chunk_index']}"
                 scored_sources.append(source_copy)
 
         # Sort by similarity score (descending)
