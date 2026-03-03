@@ -434,14 +434,15 @@ def load_document_sources():
                         for chunk in chunks:
                             # Company can be at chunk level or document level
                             chunk_company = chunk.get("Company", doc_company)
+                            page_num = chunk.get("Page", 1)
                             res = {
                                 "file_name": file_name,
                                 "document_id": document_id,
                                 "company": chunk_company,
-                                "url": doc_url,
+                                "url": f"{doc_url}#page={page_num}",
                                 "text": chunk.get("Text", ""),
                                 "description": str(chunk.get("Text", ""))[:200] + "..." if len(str(chunk.get("Text", ""))) > 200 else str(chunk.get("Text", "")),
-                                "chunk_index": chunk.get("Page", 1),
+                                "chunk_index": page_num,
                                 "citation": file_name,
                                 "embedding": chunk.get("Embedding", None)
                             }
