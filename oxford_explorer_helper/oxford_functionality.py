@@ -185,9 +185,9 @@ def run_oxford_analysis(parameters: SkillInput) -> SkillOutput:
     filter_sql, filter_display = build_filter_sql(filters)
     sql_query += filter_sql
 
-    # Add year to filter display
+    # Add year to filter display - just show the year value
     if year_display:
-        filter_display.insert(0, f"Year: {year_display}")
+        filter_display.insert(0, year_display)
 
     param_info = build_param_info(metrics, breakout1, breakout2, filter_display)
 
