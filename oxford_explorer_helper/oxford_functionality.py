@@ -112,15 +112,16 @@ def build_filter_sql(filters):
                 mapped_values = [map_value(v) for v in values]
                 if len(mapped_values) == 1:
                     filter_conditions.append(f"{dim} = '{mapped_values[0]}'")
-                    filter_display.append(f"{get_dim_label(dim)}: {mapped_values[0]}")
+                    # Just show the value for geo filters
+                    filter_display.append(str(mapped_values[0]))
                 else:
                     values_str = "', '".join(str(v) for v in mapped_values)
                     filter_conditions.append(f"{dim} IN ('{values_str}')")
-                    filter_display.append(f"{get_dim_label(dim)}: {', '.join(str(v) for v in mapped_values)}")
+                    filter_display.append(', '.join(str(v) for v in mapped_values))
             elif isinstance(values, str):
                 mapped_val = map_value(values)
                 filter_conditions.append(f"{dim} = '{mapped_val}'")
-                filter_display.append(f"{get_dim_label(dim)}: {mapped_val}")
+                filter_display.append(str(mapped_val))
             elif isinstance(values, (int, float)):
                 filter_conditions.append(f"{dim} {op} {values}")
                 filter_display.append(f"{get_dim_label(dim)} {op} {values}")
