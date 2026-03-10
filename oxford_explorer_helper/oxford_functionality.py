@@ -71,12 +71,18 @@ def build_filter_sql(filters):
     if not filters:
         return "", []
 
+    # Map geo-related column names to 'location'
+    GEO_ALIASES = ['country', 'country_description', 'country_name', 'geo', 'geography', 'market']
+
     filter_conditions = []
     filter_display = []
 
     for f in filters:
         if isinstance(f, dict) and 'dim' in f:
             dim = f['dim']
+            # Map geo aliases to location
+            if dim.lower() in GEO_ALIASES:
+                dim = 'location'
             op = f.get('op', '=')
             values = f.get('val')
 
