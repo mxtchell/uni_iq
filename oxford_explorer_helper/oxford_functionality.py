@@ -11,7 +11,8 @@ from ar_analytics import ArUtils
 
 from .oxford_config import (
     DATABASE_ID, TABLE_NAME, METRIC_GROUPS, ALL_METRICS,
-    DIMENSIONS, METRIC_LABELS, DIMENSION_LABELS
+    DIMENSIONS, METRIC_LABELS, DIMENSION_LABELS,
+    PERCENT_METRICS, NUMBER_METRICS
 )
 
 # Brand colors
@@ -25,6 +26,18 @@ def get_label(metric):
 
 def get_dim_label(dim):
     return DIMENSION_LABELS.get(dim, dim.replace('_', ' ').title())
+
+
+def get_metric_suffix(metric):
+    """Return suffix for metric - % for percentages, empty for numbers"""
+    if metric in PERCENT_METRICS:
+        return "%"
+    return ""
+
+
+def is_percent_metric(metric):
+    """Check if metric should be displayed as percentage"""
+    return metric in PERCENT_METRICS
 
 
 def resolve_metrics(metrics_input):
@@ -215,8 +228,10 @@ def run_oxford_analysis(parameters: SkillInput) -> SkillOutput:
     if len(df) == 0:
         return SkillOutput(final_prompt="No data found.", narrative="No data available.", visualizations=[])
 
-    # Build output - growth rates can be negative, use % suffix
-    suffix = "%"
+    # Determine suffix - if all metrics are percentages use %, otherwise empty
+    # (for mixed metrics, we handle per-metric in table/chart)
+    all_percent = all(m in PERCENT_METRICS for m in metrics)
+    suffix = "%" if all_percent else ""
 
     # Title
     metric_names = [get_label(m) for m in metrics]
@@ -420,6 +435,18 @@ def build_chart(df, metrics, breakout1, breakout2, suffix):
         }
 
 
+def format_metric_value(value, metric):
+    """Format metric value with appropriate suffix"""
+    if pd.isna(value):
+        return "N/A"
+    suffix = get_metric_suffix(metric)
+    if metric in NUMBER_METRICS:
+        # Format large numbers with commas, 2 decimal places
+        return f"{value:,.2f}{suffix}"
+    else:
+        return f"{value:.2f}{suffix}"
+
+
 def build_table(df, metrics, breakout1, breakout2, suffix):
     """Build table columns and data"""
     columns = []
@@ -431,7 +458,7 @@ def build_table(df, metrics, breakout1, breakout2, suffix):
 
     table_data = []
     if not breakout1:
-        row = [f"{df[m].iloc[0]:.2f}{suffix}" if pd.notna(df[m].iloc[0]) else "N/A" for m in metrics]
+        row = [format_metric_value(df[m].iloc[0], m) for m in metrics]
         table_data.append(row)
     else:
         for _, r in df.iterrows():
@@ -440,7 +467,7 @@ def build_table(df, metrics, breakout1, breakout2, suffix):
                 row.append(str(r[breakout1]))
             if breakout2:
                 row.append(str(r[breakout2]))
-            row.extend([f"{r[m]:.2f}{suffix}" if pd.notna(r[m]) else "N/A" for m in metrics])
+            row.extend([format_metric_value(r[m], m) for m in metrics])
             table_data.append(row)
 
     return columns, table_data

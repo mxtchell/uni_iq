@@ -37,6 +37,12 @@ METRIC_LABELS = {
     "monetary_easing": "Monetary Easing"
 }
 
+# Metrics that are percentages (get % suffix)
+PERCENT_METRICS = ["real_gdp", "cpi", "monetary_easing"]
+
+# Metrics that are raw numbers (no % suffix)
+NUMBER_METRICS = ["exchange_rate_period_average"]
+
 DIMENSION_LABELS = {
     "location": "Country",
     "location_code": "Country Code",
