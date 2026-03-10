@@ -402,13 +402,11 @@ def build_table(df, metrics, breakout1, breakout2, suffix):
         columns.append({"name": get_dim_label(breakout1)})
     if breakout2:
         columns.append({"name": get_dim_label(breakout2)})
-    columns.append({"name": "N"})
     columns.extend([{"name": get_label(m)} for m in metrics])
 
     table_data = []
     if not breakout1:
-        row = [f"{int(df['row_count'].iloc[0]):,}"]
-        row.extend([f"{df[m].iloc[0]:.2f}{suffix}" if pd.notna(df[m].iloc[0]) else "N/A" for m in metrics])
+        row = [f"{df[m].iloc[0]:.2f}{suffix}" if pd.notna(df[m].iloc[0]) else "N/A" for m in metrics]
         table_data.append(row)
     else:
         for _, r in df.iterrows():
@@ -417,7 +415,6 @@ def build_table(df, metrics, breakout1, breakout2, suffix):
                 row.append(str(r[breakout1]))
             if breakout2:
                 row.append(str(r[breakout2]))
-            row.append(f"{int(r['row_count']):,}")
             row.extend([f"{r[m]:.2f}{suffix}" if pd.notna(r[m]) else "N/A" for m in metrics])
             table_data.append(row)
 
