@@ -74,6 +74,18 @@ def build_filter_sql(filters):
     # Map geo-related column names to 'location'
     GEO_ALIASES = ['country', 'country_description', 'country_name', 'geo', 'geography', 'market']
 
+    # Map country codes to full names (as they appear in data)
+    COUNTRY_CODE_MAP = {
+        'USA': 'United States',
+        'US': 'United States',
+        'UK': 'United Kingdom',
+        'GB': 'United Kingdom',
+        'GBR': 'United Kingdom',
+        'UAE': 'United Arab Emirates',
+        'KSA': 'Saudi Arabia',
+        'RSA': 'South Africa',
+    }
+
     filter_conditions = []
     filter_display = []
 
@@ -81,7 +93,8 @@ def build_filter_sql(filters):
         if isinstance(f, dict) and 'dim' in f:
             dim = f['dim']
             # Map geo aliases to location
-            if dim.lower() in GEO_ALIASES:
+            is_geo = dim.lower() in GEO_ALIASES
+            if is_geo:
                 dim = 'location'
             op = f.get('op', '=')
             values = f.get('val')
@@ -89,17 +102,25 @@ def build_filter_sql(filters):
             if values is None:
                 continue
 
+            # Map country codes to full names for geo dimensions
+            def map_value(v):
+                if is_geo or dim == 'location':
+                    return COUNTRY_CODE_MAP.get(str(v).upper(), v)
+                return v
+
             if isinstance(values, list) and values:
-                if len(values) == 1:
-                    filter_conditions.append(f"{dim} = '{values[0]}'")
-                    filter_display.append(f"{get_dim_label(dim)}: {values[0]}")
+                mapped_values = [map_value(v) for v in values]
+                if len(mapped_values) == 1:
+                    filter_conditions.append(f"{dim} = '{mapped_values[0]}'")
+                    filter_display.append(f"{get_dim_label(dim)}: {mapped_values[0]}")
                 else:
-                    values_str = "', '".join(str(v) for v in values)
+                    values_str = "', '".join(str(v) for v in mapped_values)
                     filter_conditions.append(f"{dim} IN ('{values_str}')")
-                    filter_display.append(f"{get_dim_label(dim)}: {', '.join(str(v) for v in values)}")
+                    filter_display.append(f"{get_dim_label(dim)}: {', '.join(str(v) for v in mapped_values)}")
             elif isinstance(values, str):
-                filter_conditions.append(f"{dim} = '{values}'")
-                filter_display.append(f"{get_dim_label(dim)}: {values}")
+                mapped_val = map_value(values)
+                filter_conditions.append(f"{dim} = '{mapped_val}'")
+                filter_display.append(f"{get_dim_label(dim)}: {mapped_val}")
             elif isinstance(values, (int, float)):
                 filter_conditions.append(f"{dim} {op} {values}")
                 filter_display.append(f"{get_dim_label(dim)} {op} {values}")
