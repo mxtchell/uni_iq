@@ -10,9 +10,14 @@ from oxford_explorer_helper.oxford_config import INSIGHT_PROMPT_TEMPLATE, MAX_PR
     description="Analyzes Oxford Economics growth rate data including Real GDP, CPI (inflation), Exchange Rates, and Monetary Easing across countries and time periods.",
     capabilities="Compare economic indicators across countries. Analyze trends over time periods. Generate column charts for comparisons. Provide narrative insights and detailed data tables.",
     limitations="Data contains growth rates, not absolute values. Some metrics may have missing values for certain country/period combinations.",
-    example_questions="What is real GDP growth by country? How does inflation compare across countries? What is the average exchange rate for the US? Compare GDP and CPI for European countries.",
-    parameter_guidance="Use breakout_dimension='location' to compare across countries. Use breakout_dimension='period' to see trends over time. Use other_filters to limit to specific countries or time periods.",
+    example_questions="What is real GDP growth by country for 2024? How does inflation compare across countries in 2023? Show GDP trends over time for the US.",
+    parameter_guidance="IMPORTANT: Always specify a year parameter (e.g., 2024, 2023). Use breakout_dimension='location' to compare across countries. Use breakout_dimension='period' to see trends over time (will show all years).",
     parameters=[
+        SkillParameter(
+            name="year",
+            description="Year to analyze (e.g., 2024, 2023, 2022). REQUIRED unless breakout_dimension is 'period'. Use most recent year (2025) if user doesn't specify.",
+            is_required=False
+        ),
         SkillParameter(
             name="metrics",
             description="Metrics to analyze: real_gdp, cpi, exchange_rate_period_average, monetary_easing. Can also use group names: 'all', 'macro' (gdp+cpi), 'monetary' (exchange+easing).",
@@ -31,7 +36,7 @@ from oxford_explorer_helper.oxford_config import INSIGHT_PROMPT_TEMPLATE, MAX_PR
         SkillParameter(
             name="other_filters",
             constrained_to="filters",
-            description="Additional filters (e.g., filter to specific countries or periods)"
+            description="Additional filters (e.g., filter to specific countries)"
         ),
         SkillParameter(
             name="insight_prompt",
@@ -56,6 +61,7 @@ if __name__ == '__main__':
     from skill_framework import preview_skill
 
     skill_input: SkillInput = oxford_explorer.create_input(arguments={
+        'year': 2024,
         'metrics': ["real_gdp", "cpi"],
         'breakout_dimension': "location",
         'breakout_dimension_2': None,

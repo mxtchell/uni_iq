@@ -131,6 +131,7 @@ def run_oxford_analysis(parameters: SkillInput) -> SkillOutput:
     breakout1 = parameters.arguments.breakout_dimension
     breakout2 = getattr(parameters.arguments, 'breakout_dimension_2', None)
     filters = parameters.arguments.other_filters or []
+    year = getattr(parameters.arguments, 'year', None)
 
     # Resolve and validate metrics
     metrics = resolve_metrics(metrics_input)
@@ -147,8 +148,12 @@ def run_oxford_analysis(parameters: SkillInput) -> SkillOutput:
     if breakout1 and breakout2 and breakout1 == breakout2:
         breakout2 = None
 
+    # Determine if we need year filter (not needed if breaking out by period)
+    is_time_series = breakout1 == 'period' or breakout2 == 'period'
+
     print(f"DEBUG: Metrics: {metrics}")
     print(f"DEBUG: Breakout1: {breakout1}, Breakout2: {breakout2}")
+    print(f"DEBUG: Year: {year}, Is time series: {is_time_series}")
 
     # Build SQL query - these are already growth rates, just average them
     metric_selects = [f"AVG({m}) AS {m}" for m in metrics]
@@ -156,22 +161,42 @@ def run_oxford_analysis(parameters: SkillInput) -> SkillOutput:
 
     if group_cols:
         sql_query = f"""
-        SELECT {', '.join(group_cols)}, COUNT(*) AS row_count, {', '.join(metric_selects)}
+        SELECT {', '.join(group_cols)}, {', '.join(metric_selects)}
         FROM {TABLE_NAME} WHERE 1=1
         """
     else:
         sql_query = f"""
-        SELECT COUNT(*) AS row_count, {', '.join(metric_selects)}
+        SELECT {', '.join(metric_selects)}
         FROM {TABLE_NAME} WHERE 1=1
         """
+
+    # Apply year filter if not a time series view
+    year_display = None
+    if not is_time_series:
+        if year:
+            # Filter to annual data for that year (period ends with /12/31)
+            sql_query += f" AND period LIKE '{year}%'"
+            year_display = str(year)
+        else:
+            # Default to 2024 if no year specified
+            sql_query += " AND period LIKE '2024%'"
+            year_display = "2024"
 
     filter_sql, filter_display = build_filter_sql(filters)
     sql_query += filter_sql
 
+    # Add year to filter display
+    if year_display:
+        filter_display.insert(0, f"Year: {year_display}")
+
     param_info = build_param_info(metrics, breakout1, breakout2, filter_display)
 
     if group_cols:
-        sql_query += f" GROUP BY {', '.join(group_cols)} ORDER BY {metrics[0]} DESC"
+        # Sort by period chronologically if it's a time series, otherwise by metric value
+        if is_time_series:
+            sql_query += f" GROUP BY {', '.join(group_cols)} ORDER BY period ASC"
+        else:
+            sql_query += f" GROUP BY {', '.join(group_cols)} ORDER BY {metrics[0]} DESC"
 
     print(f"DEBUG: SQL: {sql_query}")
 
