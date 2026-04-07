@@ -5,7 +5,7 @@ Metrics, dimensions, and labels for economic growth rate data
 import os
 
 DATABASE_ID = os.getenv('DATABASE_ID', '17A88564-586C-49F1-BA0B-3F0599C65CAB')
-TABLE_NAME = "read_csv('Oxford_Economics_Wide.csv')"
+TABLE_NAME = "`pds_aurora_931914_dev`.`finance`.`oxford_economics_wide`"
 
 # All available metrics (growth rates)
 ALL_METRICS = [
