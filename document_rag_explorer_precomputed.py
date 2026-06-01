@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
             parameter_type="code",
             description="Base URL for document links",
             required=True,
-            default_value="https://uni-iq.poc.answerrocket.com/apps/system/knowledge-base"
+            default_value="https://drive.google.com/file/d"
         ),
         SkillParameter(
             name="company",
@@ -428,21 +428,18 @@ def load_document_sources():
                         file_name = processed_file.get("File", "unknown_file")
                         document_id = processed_file.get("DocumentId", "")
                         doc_company = processed_file.get("Company", "")
-                        doc_url = processed_file.get("Url", "")
                         chunks = processed_file.get("Chunks", [])
                         logger.info(f"DEBUG: Processing file '{file_name}' (Company: {doc_company}) with {len(chunks)} chunks")
                         for chunk in chunks:
                             # Company can be at chunk level or document level
                             chunk_company = chunk.get("Company", doc_company)
-                            page_num = chunk.get("Page", 1)
                             res = {
                                 "file_name": file_name,
                                 "document_id": document_id,
                                 "company": chunk_company,
-                                "url": f"{doc_url}#page={page_num}",
                                 "text": chunk.get("Text", ""),
                                 "description": str(chunk.get("Text", ""))[:200] + "..." if len(str(chunk.get("Text", ""))) > 200 else str(chunk.get("Text", "")),
-                                "chunk_index": page_num,
+                                "chunk_index": chunk.get("Page", 1),
                                 "citation": file_name,
                                 "embedding": chunk.get("Embedding", None)
                             }
@@ -562,6 +559,7 @@ def find_matching_documents(user_question, topics, loaded_sources, base_url, max
             if similarity >= float(match_threshold):
                 source_copy = source.copy()
                 source_copy['match_score'] = similarity
+                source_copy['url'] = f"{base_url.rstrip('/')}/{source_copy['document_id']}/view"
                 scored_sources.append(source_copy)
 
         # Sort by similarity score (descending)
