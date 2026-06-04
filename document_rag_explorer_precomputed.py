@@ -592,10 +592,10 @@ def find_matching_documents(user_question, topics, loaded_sources, base_url, max
         raise e
 
 def generate_rag_response(user_question, docs):
-    """Generate response using LLM with document context"""
+    """Generate response using LLM with document context - extractive approach only"""
     if not docs:
         return None
-    
+
     # Build facts from documents for LLM prompt
     facts = []
     for i, doc in enumerate(docs):
@@ -605,49 +605,42 @@ def generate_rag_response(user_question, docs):
         facts.append(f"Citation: {doc.url}")
         facts.append(f"Content: {doc.text}")
         facts.append("")
-    
+
     # Create the prompt for the LLM
     prompt_template = Template(narrative_prompt)
     full_prompt = prompt_template.render(
         user_query=user_question,
         facts="\n".join(facts)
     )
-    
+
     try:
         # Use ArUtils for LLM calls like other skills do
         logger.info("DEBUG: Making LLM call with ArUtils")
         from ar_analytics import ArUtils
         ar_utils = ArUtils()
         llm_response = ar_utils.get_llm_response(full_prompt)
-        
+
         logger.info(f"DEBUG: Got LLM response: {llm_response[:100]}...")
-        
-        # Parse the LLM response like the old doc_search code
+
+        # Parse the LLM response
         def get_between_tags(content, tag):
             try:
                 return content.split("<"+tag+">",1)[1].split("</"+tag+">",1)[0]
             except:
                 pass
             return content
-        
+
         title = get_between_tags(llm_response, "title") or f"Analysis: {user_question}"
         content = get_between_tags(llm_response, "content") or llm_response
-        
+
         logger.info(f"DEBUG: Parsed title: {title[:50]}...")
         logger.info(f"DEBUG: Parsed content: {content[:100]}...")
-        
+
     except Exception as e:
-        logger.error(f"DEBUG: ArUtils LLM call failed: {e}")
-        # Fallback to a structured response
-        title = f"Analysis: {user_question}"
-        content = f"<p>Based on the available documents, here's what I found regarding: <strong>{user_question}</strong></p>"
-        for i, doc in enumerate(docs):
-            doc_text = str(doc.text) if doc.text else ""
-            clean_text = doc_text.replace(f"START OF PAGE: {doc.chunk_index}", "").strip()
-            clean_text = clean_text.replace(f"END OF PAGE: {doc.chunk_index}", "").strip()
-            if clean_text and len(clean_text) > 20:
-                key_info = clean_text[:200] + "..." if len(clean_text) > 200 else clean_text
-                content += f"<p>{key_info}<sup>[{i+1}]</sup></p>"
+        logger.error(f"LLM call failed: {e}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise Exception(f"Unable to process request: {e}")
     
     # Build references with actual URLs and thumbnails
     references = []
@@ -702,40 +695,37 @@ def force_ascii_replace(html_string):
 # HTML Templates
 
 narrative_prompt = """
-Answer the user's question based on the sources provided by writing a short headline between <title> tags then detail the supporting info for that answer in HTML between <content> tags.  The content should contain citation references like <sup>[source number]</sup> where appropriate.  Conclude with a list of the references in <reference> tags like the example.
+You are an extractive research assistant. Your role is to find and quote relevant information from source documents.
 
-Base your summary solely on the provided facts, avoiding assumptions.
+STRICT RULES:
+1. ONLY report information that is DIRECTLY QUOTED or closely paraphrased from the sources below
+2. Every statement must have a citation [source number] pointing to where it appears in the sources
+3. If the sources do not contain the answer, say "This information is not available in the provided documents"
+4. NEVER infer, calculate, estimate, or generate any figures, numbers, or statistics not explicitly stated
+5. When quoting figures, use the EXACT wording from the source document
+
+Format your response with:
+- A short headline in <title> tags
+- Supporting details in HTML between <content> tags with citations like <sup>[1]</sup>
+- References in <reference> tags
 
 ### EXAMPLE
-example_question: Why are clouds so white
+example_question: What was Dove's performance?
 
 ====== Example Source 1 ====
-File and page: cloud_info_doc.pdf page 1
-Description: A document about clouds
-Citation: https://superstoredev.local.answerrocket.com:8080/apps/chat/knowledge-base/5eea3d30-8e9e-4603-ba27-e12f7d51e372#page=1
-Content: Clouds appear white because of how they interact with light. They consist of countless tiny water droplets or ice crystals that scatter all colors of light equally. When sunlight, which contains all colors of the visible spectrum, hits these particles, it scatters in all directions. This scattered light combines to appear white to our eyes. 
-====== example Source 2 ====
-File and page: cloud_info_doc.pdf page 3
-Description: A document about clouds
-Citation: https://superstoredev.local.answerrocket.com:8080/apps/chat/knowledge-base/5eea3d30-8e9e-4603-ba27-e12f7d51e372#page=3
-Content: clouds contain millions of water droplets or ice crystals that act as tiny reflectors. the size of the water droplets or ice crystals is large enough to scatter all colors of light, unlike the sky which scatters blue light more. these particles scatter all wavelengths of visible light equally, resulting in white light. 
+File and page: earnings_q4.pdf page 12
+Content: Beauty & Wellbeing delivered strong results. Dove grew high-single digit with continued momentum in Hair and Skin Care.
 
-example_assistant: <title>The reason for white clouds</title>
+example_assistant: <title>Dove Performance Overview</title>
 <content>
-    <p>Clouds appear white because of the way they interact with light. They are composed of tiny water droplets or ice crystals that scatter all colors of light equally. When sunlight, which contains all colors of the visible spectrum, hits these particles, they scatter the light in all directions. This scattered light combines to appear white to our eyes.<sup>[1]</sup></p>
-    
-    <ul>
-        <li>Clouds contain millions of water droplets or ice crystals that act as tiny reflectors.<sup>[2]</sup></li>
-        <li>These particles scatter all wavelengths of visible light equally, resulting in white light.<sup>[2]</sup></li>
-        <li>The size of the water droplets or ice crystals is large enough to scatter all colors of light, unlike the sky which scatters blue light more.<sup>[2]</sup></li>
-    </ul>
+    <p>According to the Q4 earnings report, "Dove grew high-single digit with continued momentum in Hair and Skin Care."<sup>[1]</sup></p>
 </content>
-<reference number=1 url="https://superstoredev.local.answerrocket.com:8080/apps/chat/knowledge-base/5eea3d30-8e9e-4603-ba27-e12f7d51e372#page=1" doc="cloud_info_doc.pdf" page=1>Clouds are made of tiny droplets</reference>
-<reference number=2 url="https://superstoredev.local.answerrocket.com:8080/apps/chat/knowledge-base/5eea3d30-8e9e-4603-ba27-e12f7d51e372#page=3" doc="cloud_info_doc.pdf" page=3>Ice crystals scatter all colors</reference>
+<reference number=1 url="..." doc="earnings_q4.pdf" page=12>Dove grew high-single digit</reference>
 
-### The User's Question to Answer 
-Answer this question: {{user_query}}
+### The User's Question
+{{user_query}}
 
+### Source Documents (ONLY use information from these sources)
 {{facts}}"""
 
 # Main response template (simplified for skill framework)
