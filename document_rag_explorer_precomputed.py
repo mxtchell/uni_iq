@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
             name="max_prompt",
             parameter_type="prompt",
             description="Prompt for the chat response (left panel).",
-            default_value="Respond in 2-3 sentences MAX. Give a 1-2 sentence summary answering the user's question. Then tell them to refer to the linked documents in References for more detail. Do NOT list document names or provide a full analysis.\n\nUser question: {{question}}"
+            default_value="Give a 1-2 sentence summary answering the user's question. ONLY state facts that appear verbatim in the sources below - do NOT invent or estimate any figures. Then tell them to see the Response tab for full details with citations.\n\nUser question: {{question}}\n\nSources:\n{{facts}}"
         ),
         SkillParameter(
             name="response_layout",
@@ -142,11 +142,15 @@ def document_rag_explorer(parameters: SkillInput):
             sources_html = "<p>No sources available</p>"
             title = "No Results Found"
         else:
-            # Build short facts summary for max_prompt (left panel chat response)
+            # Build facts summary for max_prompt (left panel chat response)
+            # Include actual source content so LLM can give accurate summary
             facts_parts = []
             for i, doc in enumerate(docs):
-                facts_parts.append(f"- Source {i+1}: {doc.file_name} (Page {doc.chunk_index})")
-            facts_str = "\n".join(facts_parts)
+                doc_text = str(doc.text) if doc.text else ""
+                # Truncate to first 500 chars per source for chat summary
+                snippet = doc_text[:500] + "..." if len(doc_text) > 500 else doc_text
+                facts_parts.append(f"Source {i+1} ({doc.file_name} Page {doc.chunk_index}):\n{snippet}")
+            facts_str = "\n\n".join(facts_parts)
 
             # Generate response from documents
             response_data = generate_rag_response(user_question, docs)
